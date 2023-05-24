@@ -133,8 +133,7 @@ module.exports = {
 
     if (SubCmd == 'force-remove') {
 
-      let member = interaction.options.getUser("user").id
-      member = message.guild.members.cache.get(member)
+      let member =message.guild.members.cache.get( interaction.options.getUser("user").id)
 
         let data = db.all().filter(d => d.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
         if (data) {
@@ -143,7 +142,7 @@ module.exports = {
 
             const embed = new MessageEmbed().setDescription(`🦮 L'utilisateur <@${member.id}> (\`${member.id}\`) a été détaché de force !`).setColor(color)
             message.followUp({ embeds: [embed] })
-            member.setNickname(null)
+            member.setNickname(null).catch(() => { })
             return
         }
         else {
@@ -156,8 +155,8 @@ module.exports = {
     if (SubCmd == 'remove') {
 
 
-        let member = interaction.options.getUser("user").id
-        member = message.guild.members.cache.get(member)
+        let member =message.guild.members.cache.get( interaction.options.getUser("user").id)
+
         let data = db.all().filter(d => d.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
         if (data) {
             let userMissing = data.split("_")[3].toString()
@@ -165,7 +164,7 @@ module.exports = {
             db.delete("toutou_" + message.guild.id + "_" + member.id + "_" + userMissing)
             const embed = new MessageEmbed().setDescription(`🦮 L'utilisateur <@${member.id}> (\`${member.id}\`) n'est plus votre toutou !`).setColor(color)
             message.followUp({ embeds: [embed] })
-            member.setNickname(null)
+            member.setNickname(null).catch(() => { })
 
 
             if (logs) {
@@ -196,9 +195,10 @@ module.exports = {
 
     if (SubCmd === "add") {
 
-      let member = interaction.options.getUser("user").id
-      member = message.guild.members.cache.get(member)
+        let member =message.guild.members.cache.get( interaction.options.getUser("user").id)
+        if(check(member.id,message.member.id,interaction) === false) return;
 
+       
         let data = db.all().filter(r => r.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
 
         if (data) {
@@ -212,7 +212,7 @@ module.exports = {
         db.set("toutou_" + message.guild.id + "_" + member.id + "_" + message.member.id, true)
         if (member.voice.channel) {
             if (message.member.voice.channel) {
-                member.voice.setChannel(message.member.voice.channel.id)
+                member.voice.setChannel(message.member.voice.channelId)
 
             }
         }
@@ -240,3 +240,19 @@ module.exports = {
   
 }
 
+
+
+function check(id,author,i) {
+    if(id == author) {
+        i.followUp({content : "Vous ne pouvez pas vous laisse vous même",ephemeral : true})
+        return false;
+    }
+    let owners = db.get(`owners_${i.guild.id}_${id}`) || i.guild.ownerId == id;
+    if(owners == true){
+          i.followUp({content : "Vous ne pouvez pas laisse un owner",ephemeral : true})
+        return false;
+        }
+    return true;
+    
+    
+}

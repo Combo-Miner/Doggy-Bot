@@ -53,8 +53,7 @@ module.exports = {
         
         if(SubCmd == "add") { 
             if(message.member.id !== message.guild.ownerId) return interaction.followUp({content : "Vous n'êtes pas autorisé a faire cela",ephemeral : true})
-            let user = interaction.options.getUser("user").id
-           user = message.guild.members.cache.get(member)
+            let user = interaction.options.getUser("user")
  
         let link  = db.get(`owners_${message.guild.id}_${user.id}`)
         if(link == true) {
@@ -63,20 +62,18 @@ module.exports = {
         db.set(`owners_${message.guild.id}_${user.id}`, true)
 
 
-         interaction.followUp(`${user.username} est mainteanant owner`)
+        return interaction.followUp(`${user.username} est mainteanant owner`)
     }
 } else if(SubCmd == "remove")
 {
     if(message.member.id !== message.guild.ownerId) return interaction.followUp({content : "Vous n'êtes pas autorisé a faire cela",ephemeral : true})
-    let member = interaction.options.getUser("user").id
-    member = message.guild.members.cache.get(member)
-    let user = member
+    let user = interaction.options.getUser("user")
     let link = db.get(`owners_${message.guild.id}_${user.id}`)
     if(link == true ) {
         db.delete(`owners_${message.guild.id}_${user.id}`)
-        interaction.followUp(`${user.username} n'est plus owner `)
+      return  interaction.followUp(`${user.username} n'est plus owner `)
     } else {
-        interaction.followUp(`${user.username} n'est pas owner `)
+      return  interaction.followUp(`${user.username} n'est pas owner `)
     }
 } else if(SubCmd == "list") {
     message.followUp({content : "Envoyé",ephemeral : true})
@@ -169,3 +166,5 @@ for(let i = 0; i < tt.length; i++) {
 
     }
 }
+
+
