@@ -30,7 +30,7 @@ client.on("interactionCreate", async (interaction) => {
             if(db.get(`owners_${message.guild.id}_${user.id}`) == true || interaction.user.id == message.guild.ownerId || client.config.owners.includes(user.id)){
 
             }else {
-                return interaction.followUp({content : "Vous n'êtes autorisé a éxécuter cette commande",ephemeral : true})
+                return interaction.reply({content : "Vous n'êtes autorisé a éxécuter cette commande",ephemeral : true})
             }
         }
         await interaction.deferReply({ephemeral : true})

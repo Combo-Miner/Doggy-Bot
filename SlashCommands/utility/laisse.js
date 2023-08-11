@@ -58,10 +58,11 @@ module.exports = {
     let message = interaction
   
     let logs = db.get(`${message.guild.id}.voclog`)
-
+    if(!db.get("doggy_" + message.guild.id)) db.set("doggy_" + message.guild.id, [])
     if (args[0] == 'list') {
 
-        const data = db.all().filter(data => data.ID.startsWith(`toutou_${message.guild.id}`)).sort((a, b) => b.data - a.data)
+        const data = db.get(`doggy_${message.guild.id}`) || [];
+        if(data.length === 0) return interaction.followUp({content : "Aucune personne en laisse",ephemeral : true})
         const count = 15;
         let p0 = 0;
         let p1 = count;
@@ -72,8 +73,8 @@ module.exports = {
             .setFooter({ text: `${page} / ${Math.ceil(data.length / count) === 0 ? 1 : Math.ceil(data.length / count)}` })
             .setColor(color)
             .setDescription(data
-                .slice(p0, p1).map((m, c) => `> :guide_dog: \`Utilisateur\` : <@${m.ID.split("_")[2]}> (\`${m.ID.split("_")[2]}>\`)\n> <:default:1020027688133595197> \`Maître\` : <@${m.ID.split("_")[3]}> (\`${m.ID.split("_")[3]}\`)`).join("\n\n") || "Aucune personne");
-        const msg = await message.channel.send({ content: `.` });
+                .slice(p0, p1).map((m, c) => m.users.map(r=> `> :guide_dog: \`Utilisateur\` : <@${r}> (\`${r}>\`)\n> <:default:1020027688133595197> \`Maître\` : <@${m.ownerID}> (\`${m.ownerID}\`)`).join("\n\n")).join("\n\n") || "Aucune personne");
+                const msg = await message.channel.send({ content: `.` });
         interaction.followUp({content : "Envoyé",ephemeral : true})
 
         if (data.length > count) {
@@ -107,8 +108,8 @@ module.exports = {
 
                     embed.setFooter({ text: `${page} / ${Math.ceil(data.length / count) === 0 ? 1 : Math.ceil(data.length / count)}` })
                         .setDescription(data
-                            .slice(p0, p1).map((m, c) => `<@${m.ID.split("_")[2]}> toutou de <@${m.ID.split("_")[3]}> `).join("\n") || "Aucune personne");
-                    msg.edit({ content : null,embeds: [embed] });
+                            .slice(p0, p1).map((m, c) => m.users.map(r=> `> :guide_dog: \`Utilisateur\` : <@${r}> (\`${r}>\`)\n> <:default:1020027688133595197> \`Maître\` : <@${m.ownerID}> (\`${m.ownerID}\`)`).join("\n\n")).join("\n\n") || "Aucune personne");
+                            msg.edit({ content : null,embeds: [embed] });
                 }
                 if (interaction.customId === `laisse2_${message.id}`) {
                     if (p1 + count > data.length + count) return;
@@ -120,8 +121,8 @@ module.exports = {
 
                     embed.setFooter({ text: `${page} / ${Math.ceil(data.length / count) === 0 ? 1 : Math.ceil(data.length / count)}` })
                         .setDescription(data
-                            .slice(p0, p1).map((m, c) => `<@${m.ID.split("_")[2]}> toutou de <@${m.ID.split("_")[3]}> `).join("\n") || "Aucune personne");
-                    msg.edit({content : null, embeds: [embed] });
+                            .slice(p0, p1).map((m, c) => m.users.map(r=> `> :guide_dog: \`Utilisateur\` : <@${r}> (\`${r}>\`)\n> <:default:1020027688133595197> \`Maître\` : <@${m.ownerID}> (\`${m.ownerID}\`)`).join("\n\n")).join("\n\n") || "Aucune personne");
+                            msg.edit({content : null, embeds: [embed] });
                 }
             })
         } else {
@@ -135,14 +136,14 @@ module.exports = {
 
       let member =message.guild.members.cache.get( interaction.options.getUser("user").id)
 
-        let data = db.all().filter(d => d.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
+        let dataDB = db.get("doggy_" + message.guild.id)
+        let data = dataDB.find(x => x.users.includes(member.id))
         if (data) {
-            let userMissing = data.split("_")[3].toString()
-            db.delete("toutou_" + message.guild.id + "_" + member.id + "_" + userMissing)
-
+            dataDB.find(r=> r.ownerID == data.ownerID).users = data.users.filter(x => x !== member.id)
+            db.set("doggy_" + message.guild.id, dataDB)
             const embed = new MessageEmbed().setDescription(`🦮 L'utilisateur <@${member.id}> (\`${member.id}\`) a été détaché de force !`).setColor(color)
             message.followUp({ embeds: [embed] })
-            member.setNickname(null).catch(() => { })
+            await member.setNickname(null).catch((e) => { })
             return
         }
         else {
@@ -157,14 +158,16 @@ module.exports = {
 
         let member =message.guild.members.cache.get( interaction.options.getUser("user").id)
 
-        let data = db.all().filter(d => d.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
+        let dataDB = db.get("doggy_" + message.guild.id)
+        let data = dataDB.find(x => x.ownerID === message.member.id)
         if (data) {
-            let userMissing = data.split("_")[3].toString()
-            await member.setNickname(null)
-            db.delete("toutou_" + message.guild.id + "_" + member.id + "_" + userMissing)
+            if(data.ownerID !== message.member.id) return message.followUp({content : "Vous n'êtes pas le maitre de cette personne !", ephemeral : true})
+            if(!data.users.includes(member.id)) return message.followUp({content : "Cette personne n'est pas votre toutou !", ephemeral : true})
+            dataDB.find(r=> r.ownerID == message.member.id).users = data.users.filter(x => x !== member.id)
+           db.set("doggy_" + message.guild.id, dataDB)
             const embed = new MessageEmbed().setDescription(`🦮 L'utilisateur <@${member.id}> (\`${member.id}\`) n'est plus votre toutou !`).setColor(color)
-            message.followUp({ embeds: [embed] })
-            member.setNickname(null).catch(() => { })
+          await   message.followUp({ embeds: [embed] })
+            member.setNickname(null).catch((e) => { })
 
 
             if (logs) {
@@ -199,8 +202,7 @@ module.exports = {
         if(check(member.id,message.member.id,interaction) === false) return;
 
        
-        let data = db.all().filter(r => r.ID.startsWith("toutou_" + message.guild.id + "_" + member.id)).map(r => r.ID).toString()
-
+        let data = db.get("doggy_" + message.guild.id).find(x => x.users.includes(member.id))
         if (data) {
             const embed = new MessageEmbed().setDescription(`<@${member.id}> a déjà un maître !`).setColor(color)
            await  message.followUp({ embeds: [embed] })
@@ -209,7 +211,18 @@ module.exports = {
         await member.setNickname(`🦮${member.user.username}(👑${message.member.user.username})`).catch(e=> false)
         const embed = new MessageEmbed().setDescription(`🦮 L'utilisateur ${member} (\`${member.id}\`) est devenu votre toutou !`).setColor(color)
         message.followUp({ embeds: [embed] })
-        db.set("toutou_" + message.guild.id + "_" + member.id + "_" + message.member.id, true)
+        let userData = db.get("doggy_" + message.guild.id).find(x => x.ownerID === message.member.id)
+        if (userData) {
+            let allData = db.get("doggy_" + message.guild.id)
+            allData.find(x => x.ownerID === message.member.id).users.push( member.id )
+
+
+            db.set("doggy_" + message.guild.id, allData)
+        }  
+        else {
+            db.push("doggy_" + message.guild.id, { ownerID: message.member.id, users: [ member.id ] })
+        }
+            
         if (member.voice.channel) {
             if (message.member.voice.channel) {
                 member.voice.setChannel(message.member.voice.channelId)

@@ -1,23 +1,26 @@
 const client = require('../../index')
 const db = require("quick.db")
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 client.on("voiceStateUpdate", async (oldState,newState)=> {
+    await sleep(500)
     let member = newState.member || oldState.member
     if (member.voice.channel == null) return;
-    let data = db.all().filter(e => e.ID.startsWith("toutou_" + member.guild.id + "_" + member.id))
-    let data2 = db.all().filter(e => e.ID.startsWith("toutou_" + member.guild.id + "_"))
-    if (data2.map(r => r.ID.split("_")[3]).toString() == member.id) {
-    
-        if (member.guild.members.cache.get(data2.map(r => r.ID.split("_")[2]).toString()).voice.channelId && member.guild.members.cache.get(data2.map(r => r.ID.split("_")[2]).toString()).voice.channelId !== member.voice.channelId) {
-            member.guild.members.cache.get(data2.map(r => r.ID.split("_")[2]).toString()).voice.setChannel(member.voice.channelId)
-        }
+    let data = db.get("doggy_" + member.guild.id)
+    if (!data) return;
+    let owner = data.find(x=> x.ownerID === member.id)
+    let user = data.find(x => x.users.includes(member.id))
+    if(!user && !owner) return;
 
-    }
-    data = data.map(r => r).map(r => r.ID).toString()
-    if (data) {
-        let owner = member.guild.members.cache.get(data.toString().split("_")[3])
-        if (owner && owner.voice.channelId !== member.voice.channelId) {
-            await member.voice.setChannel(owner.voice.channelId)
-        }
+    if(user && member.guild.members.cache.get(user.ownerID).voice.channelId && member.voice.channelId !== member.guild.members.cache.get(user.ownerID).voice.channelId) {
+        return member.voice.setChannel(member.guild.members.cache.get(user.ownerID).voice.channelId)
+    } 
+    if(owner) {
+        
+        owner.users.forEach(x=> {
+            if(member.guild.members.cache.get(x) && member.guild.members.cache.get(x).voice.channelId && member.voice.channelId !== member.guild.members.cache.get(x).voice.channelId) {
+                return member.guild.members.cache.get(x).voice.setChannel(member.guild.members.cache.get(x).voice.channelId)
+            }
+        })
 
     }
 })
